@@ -6,7 +6,7 @@
  * steps / url: 従来どおり
  */
 const CONFIG = {
-  eventTitle: "自転車点検会マニュアル（2026前期）",
+  eventTitle: "自転車点検会マニュアル",
   manuals: [
     {
       id: "reception",
