@@ -556,6 +556,8 @@ body {
 .dialogue__bubble {
   display: flex;
   flex-direction: column;
+  text-align: left;
+  align-items: flex-start;
   gap: 4px;
   max-width: min(92%, 22rem);
   padding: 12px 14px;
@@ -564,8 +566,6 @@ body {
 }
 
 .dialogue__row--staff .dialogue__bubble {
-  align-items: flex-end;
-  text-align: right;
   border-radius: 16px;
   border-right: 3px solid var(--accent-mid);
   border-left: 1px solid var(--border);
