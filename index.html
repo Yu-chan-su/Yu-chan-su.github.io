@@ -1,1 +1,88 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#7fff00" />
+  <meta name="description" content="自転車点検会（2026前期）スタッフ向けマニュアル" />
+  <title>自転車点検会マニュアル</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <a class="skip-link" href="#main">本文へスキップ</a>
 
+  <div class="sticky-head">
+    <header class="site-header">
+      <div class="site-header__inner">
+        <p class="site-header__label">スタッフ向け</p>
+        <h1 class="site-header__title" id="event-title">マニュアル一覧</h1>
+      </div>
+      <div class="site-header__actions">
+        <button type="button" class="btn-icon" id="font-toggle" aria-pressed="false" title="文字サイズ">
+          <span class="btn-icon__text" aria-hidden="true">A</span>
+          <span class="visually-hidden">文字サイズを切り替え</span>
+        </button>
+      </div>
+    </header>
+  </div>
+
+  <main id="main" class="main">
+    <p class="result-hint" id="result-hint" aria-live="polite"></p>
+    <ul class="manual-list" id="manual-list"></ul>
+    <p class="empty-state" id="empty-state" hidden>マニュアルが登録されていません。</p>
+  </main>
+
+  <div class="drawer-backdrop" id="drawer-backdrop" hidden></div>
+  <aside class="drawer" id="drawer" role="dialog" aria-modal="true" aria-hidden="true" aria-labelledby="drawer-title">
+    <div class="drawer__header">
+      <button type="button" class="drawer__close" id="drawer-close" aria-label="閉じる">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+          <path d="M18 6L6 18M6 6l12 12" />
+        </svg>
+      </button>
+      <p class="drawer__category" id="drawer-category"></p>
+      <h2 class="drawer__title" id="drawer-title"></h2>
+    </div>
+    <div class="drawer__body" id="drawer-body">
+      <p class="drawer__summary" id="drawer-summary"></p>
+      <div class="drawer-tab-shell" id="drawer-tab-shell">
+        <div class="drawer-tabs drawer-tabs--drawer" id="drawer-tab-bar" role="tablist" aria-label="ドロワー内の表示切替" hidden>
+          <button type="button" class="drawer-tab" id="drawer-tab-0" role="tab" aria-selected="true" aria-controls="drawer-tab-panel-0" data-tab="0">要点</button>
+          <button type="button" class="drawer-tab" id="drawer-tab-1" role="tab" aria-selected="false" aria-controls="drawer-tab-panel-1" tabindex="-1" data-tab="1">詳細</button>
+          <button type="button" class="drawer-tab" id="drawer-tab-2" role="tab" aria-selected="false" aria-controls="drawer-tab-panel-2" tabindex="-1" data-tab="2">台詞</button>
+        </div>
+        <div class="drawer-tab-panels" id="drawer-tab-panels">
+          <div class="drawer-tab-panel is-active" id="drawer-tab-panel-0" role="tabpanel" aria-labelledby="drawer-tab-0" tabindex="0">
+            <section class="drawer__section" id="drawer-steps-section" hidden>
+              <h3 class="drawer__section-title">要点</h3>
+              <div class="drawer__steps" id="drawer-steps"></div>
+            </section>
+          </div>
+          <div class="drawer-tab-panel" id="drawer-tab-panel-1" role="tabpanel" aria-labelledby="drawer-tab-1" tabindex="0">
+            <section class="drawer__section" id="drawer-fields-section" hidden>
+              <h3 class="drawer__section-title" id="drawer-fields-heading">記入項目</h3>
+              <div class="field-grid" id="drawer-fields"></div>
+            </section>
+            <section class="drawer__section" id="drawer-detail-section">
+              <h3 class="drawer__section-title">詳細</h3>
+              <div class="drawer__detail" id="drawer-detail"></div>
+            </section>
+          </div>
+          <div class="drawer-tab-panel" id="drawer-tab-panel-2" role="tabpanel" aria-labelledby="drawer-tab-2" tabindex="0">
+            <section class="drawer__section" id="drawer-dialogue-section" hidden>
+              <h3 class="drawer__section-title" id="drawer-dialogue-heading">対応例（台詞）</h3>
+              <p class="dialogue__preface" id="drawer-dialogue-preface" hidden></p>
+              <div class="dialogue" id="drawer-dialogue"></div>
+            </section>
+          </div>
+        </div>
+      </div>
+      <div class="drawer__extras" id="drawer-link-wrap" hidden>
+        <button type="button" class="btn-secondary" id="drawer-link-btn">参考資料を別タブで開く</button>
+      </div>
+    </div>
+  </aside>
+
+  <script src="app.js"></script>
+</body>
+</html>
