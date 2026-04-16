@@ -219,7 +219,14 @@ const els = {
   hint: document.getElementById("result-hint"),
   empty: document.getElementById("empty-state"),
   fontToggle: document.getElementById("font-toggle"),
+  gate: document.getElementById("gate"),
+  gateYes: document.getElementById("gate-yes"),
+  gateNo: document.getElementById("gate-no"),
+  gateActionsAsk: document.getElementById("gate-actions-ask"),
+  gateNotice: document.getElementById("gate-notice"),
+  gateContinue: document.getElementById("gate-continue"),
   drawer: document.getElementById("drawer"),
+  drawerHeader: document.querySelector("#drawer .drawer__header"),
   backdrop: document.getElementById("drawer-backdrop"),
   drawerClose: document.getElementById("drawer-close"),
   drawerBody: document.getElementById("drawer-body"),
@@ -247,6 +254,83 @@ const els = {
   drawerTab1: document.getElementById("drawer-tab-1"),
   drawerTab2: document.getElementById("drawer-tab-2"),
 };
+
+function openGuidanceDialogue() {
+  openDrawer("guidance");
+  // openDrawer 内でタブ有無が確定するので、次フレームで「台詞」へ
+  requestAnimationFrame(() => selectDrawerTab(2));
+}
+
+function initGate() {
+  if (!els.gate || !els.gateYes || !els.gateNo) return;
+
+  const key = "staff-year";
+  // リロード時は必ず質問を出す（保存値でスキップしない）
+
+  const showAsk = () => {
+    if (els.gateActionsAsk) els.gateActionsAsk.hidden = false;
+    if (els.gateNotice) els.gateNotice.hidden = true;
+  };
+  const showNotice = () => {
+    if (els.gateActionsAsk) els.gateActionsAsk.hidden = true;
+    if (els.gateNotice) els.gateNotice.hidden = false;
+  };
+  const open = () => {
+    els.gate.hidden = false;
+    els.gate.removeAttribute("hidden");
+    // ask 表示中だけ 1年目ボタンへフォーカス
+    if (els.gateActionsAsk && !els.gateActionsAsk.hidden) {
+      els.gateYes.focus({ preventScroll: true });
+    }
+  };
+  const close = () => {
+    els.gate.hidden = true;
+    els.gate.setAttribute("hidden", "");
+  };
+  const proceed = () => {
+    close();
+    openGuidanceDialogue();
+  };
+
+  const proceedNone = () => {
+    // 2年目以降は従来どおり一覧から選べるように、何も開かずに閉じる
+    close();
+  };
+
+  const startFirstYearFlow = () => {
+    // 「1年目」ボタンが押されるまで注意書きは見せない
+    showNotice();
+    // 注意書きを出し、確認ボタンを押したら進む
+    els.gateContinue?.focus({ preventScroll: true });
+  };
+
+  els.gateYes.addEventListener("click", () => {
+    localStorage.setItem(key, "1");
+    startFirstYearFlow();
+  });
+
+  els.gateNo.addEventListener("click", () => {
+    localStorage.setItem(key, "0");
+    proceedNone();
+  });
+
+  els.gateContinue?.addEventListener("click", () => {
+    proceed();
+  });
+
+  document.addEventListener("keydown", (e) => {
+    if (els.gate.hidden) return;
+    if (e.key === "Escape") {
+      // 誤タップの救済：保存を消して質問画面に戻す
+      localStorage.removeItem(key);
+      showAsk();
+      open();
+    }
+  });
+
+  showAsk();
+  open();
+}
 
 /** @param {typeof CONFIG.manuals[0]} m */
 function detailParagraphs(m) {
@@ -436,12 +520,16 @@ function renderList() {
     btn.className = "manual-card";
     btn.setAttribute("aria-haspopup", "dialog");
     btn.dataset.id = m.id;
+    const firstYearBadge =
+      m.id === "guidance"
+        ? `<span class="manual-card__badge manual-card__badge--warn">一年生はこちら</span>`
+        : "";
     btn.innerHTML = `
       <div class="manual-card__meta">
         <p class="manual-card__category">${escapeHtml(m.category)}</p>
         <span class="manual-card__chev" aria-hidden="true">›</span>
       </div>
-      <h3 class="manual-card__title">${escapeHtml(m.title)}</h3>
+      <h3 class="manual-card__title">${escapeHtml(m.title)}${firstYearBadge}</h3>
       <p class="manual-card__excerpt">${escapeHtml(m.summary)}</p>
     `;
     btn.addEventListener("click", () => openDrawer(m.id));
@@ -466,6 +554,9 @@ function openDrawer(id) {
   const m = findManual(id);
   if (!m) return;
   state.openId = id;
+  // スワイプ操作の途中で残った状態をリセット
+  els.drawer.style.transition = "";
+  els.drawer.style.transform = "";
   els.drawerBody.scrollTop = 0;
 
   els.drawerCategory.textContent = m.category;
@@ -527,6 +618,8 @@ function closeDrawer() {
   state.openId = null;
   state.drawerTabMaxIndex = -1;
   els.drawer.classList.remove("is-open");
+  els.drawer.style.transition = "";
+  els.drawer.style.transform = "";
   els.drawer.setAttribute("aria-hidden", "true");
   document.body.classList.remove("drawer-open");
   els.backdrop.hidden = true;
@@ -580,6 +673,64 @@ function initDrawerUi() {
       tabs[next]?.focus();
     }
   });
+
+  // 上部ヘッダーを下にスワイプして閉じる
+  const attachSwipeClose = (targetEl) => {
+    if (!targetEl) return;
+    let dragging = false;
+    let startY = 0;
+    let lastY = 0;
+    const threshold = 90;
+
+    const onDown = (e) => {
+      if (!state.openId) return;
+      if (e.pointerType === "mouse" && e.button !== 0) return;
+      // ×ボタン等の操作を邪魔しない（あたり判定の重なり対策）
+      const target = /** @type {Element|null} */ (e.target instanceof Element ? e.target : null);
+      if (target && target.closest("button, a, input, textarea, select, [role='button']")) return;
+      dragging = true;
+      startY = e.clientY;
+      lastY = e.clientY;
+      targetEl.setPointerCapture?.(e.pointerId);
+      // 追従中はトランジション無し
+      els.drawer.style.transition = "none";
+    };
+
+    const onMove = (e) => {
+      if (!dragging) return;
+      lastY = e.clientY;
+      const dy = Math.max(0, lastY - startY);
+      if (dy > 0) {
+        // スクロールではなくシートを引き下げている感を優先
+        e.preventDefault?.();
+      }
+      els.drawer.style.transform = `translateY(${dy}px)`;
+    };
+
+    const onUp = (e) => {
+      if (!dragging) return;
+      dragging = false;
+      targetEl.releasePointerCapture?.(e.pointerId);
+      const dy = Math.max(0, lastY - startY);
+
+      // 元の transition に戻す（閉じない場合はスナップバック）
+      els.drawer.style.transition = "";
+      if (dy >= threshold) {
+        closeDrawer();
+        return;
+      }
+      // CSS の .drawer.is-open の transform に戻す
+      els.drawer.style.transform = "";
+    };
+
+    targetEl.addEventListener("pointerdown", onDown, { passive: true });
+    targetEl.addEventListener("pointermove", onMove, { passive: false });
+    targetEl.addEventListener("pointerup", onUp, { passive: true });
+    targetEl.addEventListener("pointercancel", onUp, { passive: true });
+  };
+
+  attachSwipeClose(els.drawerHeader);
+  attachSwipeClose(els.drawerSummary);
 }
 
 function init() {
@@ -587,6 +738,7 @@ function init() {
   renderList();
   initDrawerUi();
   initFontToggle();
+  initGate();
 }
 
 init();
