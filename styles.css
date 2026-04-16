@@ -50,6 +50,91 @@ body {
   line-height: 1.55;
 }
 
+.gate {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  display: grid;
+  /* 少し上寄せ（下に寄りすぎない） */
+  place-items: center;
+  padding: 24px var(--space-r) calc(24px + var(--space-b)) var(--space);
+  background: rgba(30, 50, 25, 0.22);
+  backdrop-filter: blur(4px);
+}
+
+.gate[hidden] {
+  display: none !important;
+}
+
+.gate__notice[hidden] {
+  display: none !important;
+}
+
+.gate__panel {
+  width: min(100%, 520px);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 16px 16px 14px;
+}
+
+.gate__title {
+  margin: 0 0 6px;
+  font-size: 1.0625rem;
+  letter-spacing: -0.01em;
+}
+
+.gate__desc {
+  margin: 0 0 12px;
+  color: var(--text-muted);
+  font-size: 0.9375rem;
+}
+
+.gate__notice-title {
+  margin: 0 0 6px;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+}
+
+.gate__notice-text {
+  margin: 0 0 14px;
+  padding: 12px 12px;
+  border-radius: 12px;
+  border: 1px solid rgba(220, 38, 38, 0.28);
+  background: rgba(220, 38, 38, 0.10);
+  font-weight: 700;
+}
+
+.gate__actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.gate__btn {
+  flex: 1;
+  min-width: 140px;
+  min-height: 46px;
+  padding: 10px 14px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: #fff;
+  color: var(--text);
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.gate__btn--primary {
+  border-color: rgba(127, 255, 0, 0.55);
+  background: rgba(127, 255, 0, 0.18);
+}
+
+.gate__btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
 .visually-hidden {
   position: absolute;
   width: 1px;
@@ -209,6 +294,25 @@ body {
   font-size: var(--font-large);
   font-weight: 700;
   line-height: 1.35;
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+}
+
+.manual-card__badge {
+  font-size: 0.75rem;
+  font-weight: 900;
+  letter-spacing: 0.02em;
+  padding: 4px 8px;
+  border-radius: 999px;
+  border: 1px solid transparent;
+  white-space: nowrap;
+}
+
+.manual-card__badge--warn {
+  color: #b91c1c;
+  background: rgba(220, 38, 38, 0.12);
+  border-color: rgba(220, 38, 38, 0.28);
 }
 
 .manual-card__excerpt {
@@ -264,6 +368,7 @@ body {
   flex-shrink: 0;
   padding: max(16px, env(safe-area-inset-top)) 16px 12px;
   border-bottom: 1px solid var(--border);
+  touch-action: pan-y;
 }
 
 .drawer__close {
@@ -424,6 +529,7 @@ body {
   margin: 0 0 16px;
   color: var(--text-muted);
   font-size: 0.9375rem;
+  touch-action: pan-y;
 }
 
 .drawer__section {
