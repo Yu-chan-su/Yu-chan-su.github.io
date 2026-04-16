@@ -218,8 +218,13 @@ const els = {
   list: document.getElementById("manual-list"),
   hint: document.getElementById("result-hint"),
   empty: document.getElementById("empty-state"),
+  jumpFirstYear: document.getElementById("jump-firstyear"),
   fontToggle: document.getElementById("font-toggle"),
   gate: document.getElementById("gate"),
+  gateTitle: document.getElementById("gate-title"),
+  gateDesc: document.getElementById("gate-desc"),
+  gateIntro: document.getElementById("gate-intro"),
+  gateIntroNext: document.getElementById("gate-intro-next"),
   gateYes: document.getElementById("gate-yes"),
   gateNo: document.getElementById("gate-no"),
   gateActionsAsk: document.getElementById("gate-actions-ask"),
@@ -261,31 +266,101 @@ function openGuidanceDialogue() {
   requestAnimationFrame(() => selectDrawerTab(2));
 }
 
+function getGuidanceCardEl() {
+  if (!els.list) return null;
+  return /** @type {HTMLElement|null} */ (els.list.querySelector('[data-id="guidance"]') || null);
+}
+
+function isMostlyInViewport(el) {
+  const rect = el.getBoundingClientRect();
+  const vh = window.innerHeight || document.documentElement.clientHeight || 0;
+  if (!vh) return false;
+  // だいたい中央帯に入っていたら「見えている」扱い（observer の 0.2 相当）
+  const topEdge = vh * 0.15;
+  const bottomEdge = vh * 0.85;
+  return rect.bottom > topEdge && rect.top < bottomEdge;
+}
+
+function updateJumpFirstYearVisibility() {
+  if (!els.jumpFirstYear) return;
+  const gateOpen = Boolean(els.gate && !els.gate.hidden);
+  const drawerOpen = Boolean(state.openId);
+  const t = getGuidanceCardEl();
+  const targetVisible = Boolean(t && isMostlyInViewport(t));
+  els.jumpFirstYear.hidden = gateOpen || drawerOpen || targetVisible;
+}
+
+function initJumpFirstYear() {
+  if (!els.jumpFirstYear || !els.list) return;
+
+  const jump = () => {
+    const t = getGuidanceCardEl();
+    if (!t) return;
+    t.scrollIntoView({ behavior: "smooth", block: "start" });
+    try {
+      t.focus({ preventScroll: true });
+    } catch (_) {}
+  };
+
+  els.jumpFirstYear.addEventListener("click", jump);
+
+  const t = getGuidanceCardEl();
+  if (t && typeof IntersectionObserver !== "undefined") {
+    const io = new IntersectionObserver(updateJumpFirstYearVisibility, {
+      root: null,
+      threshold: 0.2,
+    });
+    io.observe(t);
+  }
+  // 初期状態も同期
+  updateJumpFirstYearVisibility();
+}
+
 function initGate() {
-  if (!els.gate || !els.gateYes || !els.gateNo) return;
+  if (!els.gate || !els.gateIntro || !els.gateIntroNext || !els.gateYes || !els.gateNo) return;
 
   const key = "staff-year";
   // リロード時は必ず質問を出す（保存値でスキップしない）
+  const ua = navigator.userAgent || "";
+  const isLineInApp = /\bLine\/\d/i.test(ua);
 
+  const showIntro = () => {
+    if (els.gateTitle) els.gateTitle.textContent = "確認";
+    if (els.gateDesc) els.gateDesc.textContent = "外部ブラウザで開くと動作が安定します。";
+    els.gateIntro.hidden = false;
+    if (els.gateActionsAsk) els.gateActionsAsk.hidden = true;
+    if (els.gateNotice) els.gateNotice.hidden = true;
+  };
   const showAsk = () => {
+    if (els.gateTitle) els.gateTitle.textContent = "確認";
+    if (els.gateDesc) els.gateDesc.textContent = "あなたは1年目スタッフですか？";
+    els.gateIntro.hidden = true;
     if (els.gateActionsAsk) els.gateActionsAsk.hidden = false;
     if (els.gateNotice) els.gateNotice.hidden = true;
   };
   const showNotice = () => {
+    if (els.gateTitle) els.gateTitle.textContent = "確認";
+    if (els.gateDesc) els.gateDesc.textContent = "1年目の人はこの注意書きを確認してください。";
+    els.gateIntro.hidden = true;
     if (els.gateActionsAsk) els.gateActionsAsk.hidden = true;
     if (els.gateNotice) els.gateNotice.hidden = false;
   };
   const open = () => {
     els.gate.hidden = false;
     els.gate.removeAttribute("hidden");
-    // ask 表示中だけ 1年目ボタンへフォーカス
-    if (els.gateActionsAsk && !els.gateActionsAsk.hidden) {
+    if (!els.gateIntro.hidden) {
+      els.gateIntroNext.focus({ preventScroll: true });
+    } else if (els.gateActionsAsk && !els.gateActionsAsk.hidden) {
       els.gateYes.focus({ preventScroll: true });
     }
+    // ジャンプボタンは updateJumpFirstYear 側で gate を見て隠れる
+    updateJumpFirstYearVisibility();
   };
   const close = () => {
     els.gate.hidden = true;
     els.gate.setAttribute("hidden", "");
+    // ジャンプボタンは updateJumpFirstYear 側で再評価される
+    updateJumpFirstYearVisibility();
   };
   const proceed = () => {
     close();
@@ -318,17 +393,24 @@ function initGate() {
     proceed();
   });
 
+  els.gateIntroNext.addEventListener("click", () => {
+    showAsk();
+    open();
+  });
+
   document.addEventListener("keydown", (e) => {
     if (els.gate.hidden) return;
     if (e.key === "Escape") {
       // 誤タップの救済：保存を消して質問画面に戻す
       localStorage.removeItem(key);
-      showAsk();
+      if (isLineInApp) showIntro();
+      else showAsk();
       open();
     }
   });
 
-  showAsk();
+  if (isLineInApp) showIntro();
+  else showAsk();
   open();
 }
 
@@ -612,6 +694,7 @@ function openDrawer(id) {
   els.drawer.setAttribute("aria-hidden", "false");
   document.body.classList.add("drawer-open");
   els.drawerClose.focus({ preventScroll: true });
+  updateJumpFirstYearVisibility();
 }
 
 function closeDrawer() {
@@ -625,6 +708,7 @@ function closeDrawer() {
   els.backdrop.hidden = true;
   delete els.drawerLinkBtn.dataset.url;
   els.drawerBody.classList.remove("drawer__body--tabs");
+  updateJumpFirstYearVisibility();
 }
 
 function initFontToggle() {
@@ -674,13 +758,15 @@ function initDrawerUi() {
     }
   });
 
-  // 上部ヘッダーを下にスワイプして閉じる
+  // 上部（ヘッダー/サマリー）を下にスワイプして閉じる
   const attachSwipeClose = (targetEl) => {
     if (!targetEl) return;
     let dragging = false;
     let startY = 0;
     let lastY = 0;
     const threshold = 90;
+    let touchId = null;
+    let recentlyPointer = false;
 
     const onDown = (e) => {
       if (!state.openId) return;
@@ -691,6 +777,7 @@ function initDrawerUi() {
       dragging = true;
       startY = e.clientY;
       lastY = e.clientY;
+      recentlyPointer = true;
       targetEl.setPointerCapture?.(e.pointerId);
       // 追従中はトランジション無し
       els.drawer.style.transition = "none";
@@ -710,6 +797,7 @@ function initDrawerUi() {
     const onUp = (e) => {
       if (!dragging) return;
       dragging = false;
+      recentlyPointer = false;
       targetEl.releasePointerCapture?.(e.pointerId);
       const dy = Math.max(0, lastY - startY);
 
@@ -723,10 +811,97 @@ function initDrawerUi() {
       els.drawer.style.transform = "";
     };
 
+    // Pointer Events（対応ブラウザ向け）
     targetEl.addEventListener("pointerdown", onDown, { passive: true });
     targetEl.addEventListener("pointermove", onMove, { passive: false });
     targetEl.addEventListener("pointerup", onUp, { passive: true });
-    targetEl.addEventListener("pointercancel", onUp, { passive: true });
+    targetEl.addEventListener(
+      "pointercancel",
+      (e) => {
+        if (!dragging) return;
+        dragging = false;
+        recentlyPointer = false;
+        els.drawer.style.transition = "";
+        els.drawer.style.transform = "";
+        targetEl.releasePointerCapture?.(e.pointerId);
+      },
+      { passive: true }
+    );
+
+    // Touch Events（iOS Safari などのフォールバック）
+    targetEl.addEventListener(
+      "touchstart",
+      (e) => {
+        if (!state.openId) return;
+        // Pointer と touch が両方来る環境で二重発火しないように
+        if (recentlyPointer) return;
+        const t = e.touches && e.touches[0];
+        if (!t) return;
+        const target = /** @type {Element|null} */ (e.target instanceof Element ? e.target : null);
+        if (target && target.closest("button, a, input, textarea, select, [role='button']")) return;
+        touchId = t.identifier;
+        dragging = true;
+        startY = t.clientY;
+        lastY = t.clientY;
+        els.drawer.style.transition = "none";
+      },
+      { passive: true }
+    );
+
+    targetEl.addEventListener(
+      "touchmove",
+      (e) => {
+        if (!dragging) return;
+        const touches = e.touches;
+        if (!touches || touches.length === 0) return;
+        // Array.from を避けて軽量に
+        let t = touches[0];
+        if (touchId !== null) {
+          for (let i = 0; i < touches.length; i += 1) {
+            if (touches[i].identifier === touchId) {
+              t = touches[i];
+              break;
+            }
+          }
+        }
+        lastY = t.clientY;
+        const dy = Math.max(0, lastY - startY);
+        if (dy > 0) e.preventDefault();
+        els.drawer.style.transform = `translateY(${dy}px)`;
+      },
+      { passive: false }
+    );
+
+    targetEl.addEventListener(
+      "touchend",
+      () => {
+        if (!dragging) return;
+        dragging = false;
+        touchId = null;
+        recentlyPointer = false;
+        const dy = Math.max(0, lastY - startY);
+        els.drawer.style.transition = "";
+        if (dy >= threshold) {
+          closeDrawer();
+          return;
+        }
+        els.drawer.style.transform = "";
+      },
+      { passive: true }
+    );
+
+    targetEl.addEventListener(
+      "touchcancel",
+      () => {
+        if (!dragging) return;
+        dragging = false;
+        touchId = null;
+        recentlyPointer = false;
+        els.drawer.style.transition = "";
+        els.drawer.style.transform = "";
+      },
+      { passive: true }
+    );
   };
 
   attachSwipeClose(els.drawerHeader);
@@ -736,6 +911,7 @@ function initDrawerUi() {
 function init() {
   els.eventTitle.textContent = CONFIG.eventTitle;
   renderList();
+  initJumpFirstYear();
   initDrawerUi();
   initFontToggle();
   initGate();
