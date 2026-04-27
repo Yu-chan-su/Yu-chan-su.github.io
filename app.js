@@ -2,8 +2,9 @@
  * 元データ: 自転車点検会マニュアル2026前期.txt
  * detail: 本文（段落の配列）
  * fieldList / fieldsTitle: 記入項目などをカード表示（任意）
- * dialogue: 台詞をLINE風に表示（任意）。詳細（fieldList または detail）がある項目は「要点 / 詳細」タブ。台詞もあれば「台詞」タブを追加します
- * steps / url: 従来どおり
+ * dialogue: 台詞をLINE風に表示（任意）。詳細（fieldList または detail）がある項目は「概要 / 詳細」タブ。台詞もあれば「台詞」タブを追加します
+ * steps / url: 従来どおり（単一リンク）
+ * links: [{ label, href }] 複数の参考資料。PDF/SVG はドロワー内に埋め込み表示し、別タブ用ボタンも出します（任意）
  */
 const CONFIG = {
   eventTitle: "自転車点検会マニュアル",
@@ -19,6 +20,7 @@ const CONFIG = {
         "引換証に点検表と同じ番号・受取16:00までを記入し渡す",
         "点検票はGIが常に保管。自転車は修理場所または修理待機場所へ",
       ],
+      links: [{ label: "受付（PDF）", href: "./reception.pdf" }],
       fieldsTitle: "点検票まわりの記入項目",
       fieldList: [
         { label: "所属", value: "学科まで記入してもらう。" },
@@ -197,19 +199,20 @@ const CONFIG = {
       id: "map",
       category: "全体",
       title: "場内図・その他",
-      summary: "マニュアル原文では「※その他、場内図」とされています。レイアウトは当日資料で確認してください。",
+      summary: "場内図は PDF と詳細 SVG を用意しています。「概要」タブでこのページ内に表示され、「詳細」タブのボタンから別タブで開けます。当日の掲示・運営指示もあわせて確認してください。",
       steps: [],
-      detail: [
-        "図面そのものはテキストマニュアルに含まれていません。当日配布の場内図・掲示・運営からの指示を最優先で確認してください。",
-        "PDFや画像で場内図を配布する場合は、app.js の該当項目に url を追加し、「参考資料を別タブで開く」から参照できるようにすると便利です。",
+      links: [
+        { label: "場内図（PDF）", href: "./map.pdf" },
+        { label: "場内図詳細（SVG）", href: "./map_detail.svg" },
       ],
+      detail: ["当日配布の場内図・掲示・運営からの指示を最優先で確認してください。"],
     },
   ],
 };
 
 const state = {
   openId: null,
-  /** ドロワー内タブ: -1=なし, 1=要点・詳細の2つ, 2=台詞タブありで3つ */
+  /** ドロワー内タブ: -1=なし, 1=概要・詳細の2つ, 2=台詞タブありで3つ */
   drawerTabMaxIndex: -1,
 };
 
@@ -249,7 +252,9 @@ const els = {
   drawerDialoguePreface: document.getElementById("drawer-dialogue-preface"),
   drawerDialogue: document.getElementById("drawer-dialogue"),
   drawerLinkWrap: document.getElementById("drawer-link-wrap"),
-  drawerLinkBtn: document.getElementById("drawer-link-btn"),
+  drawerInlineWrap: document.getElementById("drawer-inline-wrap"),
+  drawerInlineHost: document.getElementById("drawer-inline-host"),
+  drawerLinks: document.getElementById("drawer-links"),
   drawerTabBar: document.getElementById("drawer-tab-bar"),
   drawerTabPanels: document.getElementById("drawer-tab-panels"),
   drawerTabPanel0: document.getElementById("drawer-tab-panel-0"),
@@ -644,6 +649,97 @@ function findManual(id) {
   return CONFIG.manuals.find((m) => m.id === id) || null;
 }
 
+function resolveAssetHref(href) {
+  const s = (href != null ? String(href) : "").trim();
+  if (!s) return "";
+  try {
+    return new URL(s, window.location.href).href;
+  } catch {
+    return s;
+  }
+}
+
+function collectDrawerLinkItems(m) {
+  const items = [];
+  if (Array.isArray(m.links) && m.links.length) {
+    m.links.forEach((x) => {
+      const href = (x && x.href != null ? String(x.href) : "").trim();
+      const label = (x && x.label != null ? String(x.label) : "").trim();
+      if (href) items.push({ label: label || "参考資料を開く", href });
+    });
+  } else {
+    const u = (m.url || "").trim();
+    if (u) items.push({ label: "参考資料を別タブで開く", href: u });
+  }
+  return items;
+}
+
+function renderDrawerInlineHost(items) {
+  if (!els.drawerInlineHost) return false;
+  els.drawerInlineHost.innerHTML = "";
+  let any = false;
+  items.forEach(({ label, href }) => {
+    const path = href.split("?")[0].toLowerCase();
+    if (!path.endsWith(".svg") && !path.endsWith(".pdf")) return;
+    const resolved = resolveAssetHref(href);
+    const block = document.createElement("div");
+    block.className = "drawer-inline-block";
+    const h = document.createElement("h4");
+    h.className = "drawer-inline-title";
+    h.textContent = label;
+    block.appendChild(h);
+    const frame = document.createElement("div");
+    frame.className = "drawer-inline-frame";
+    if (path.endsWith(".svg")) {
+      const img = document.createElement("img");
+      img.className = "drawer-inline-svg";
+      img.src = resolved;
+      img.alt = label;
+      frame.appendChild(img);
+      block.appendChild(frame);
+    } else {
+      const iframe = document.createElement("iframe");
+      iframe.className = "drawer-inline-pdf";
+      iframe.src = resolved;
+      iframe.title = label;
+      iframe.loading = "eager";
+      frame.appendChild(iframe);
+      block.appendChild(frame);
+      const note = document.createElement("p");
+      note.className = "drawer-inline-pdf-note";
+      const a = document.createElement("a");
+      a.href = resolved;
+      a.target = "_blank";
+      a.rel = "noopener noreferrer";
+      a.textContent = `${label}を別タブで開く`;
+      note.appendChild(a);
+      block.appendChild(note);
+    }
+    els.drawerInlineHost.appendChild(block);
+    any = true;
+  });
+  els.drawerInlineHost.hidden = !any;
+  if (els.drawerInlineWrap) els.drawerInlineWrap.hidden = !any;
+  return any;
+}
+
+function renderDrawerAttachments(m) {
+  if (!els.drawerLinkWrap || !els.drawerLinks) return;
+  const items = collectDrawerLinkItems(m);
+  renderDrawerInlineHost(items);
+  els.drawerLinks.innerHTML = "";
+  items.forEach(({ label, href }) => {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "btn-secondary";
+    btn.dataset.href = resolveAssetHref(href);
+    btn.textContent = label;
+    btn.setAttribute("aria-label", `${label}を別タブで開く`);
+    els.drawerLinks.appendChild(btn);
+  });
+  if (els.drawerLinkWrap) els.drawerLinkWrap.hidden = items.length === 0;
+}
+
 function openDrawer(id) {
   const m = findManual(id);
   if (!m) return;
@@ -692,14 +788,7 @@ function openDrawer(id) {
 
   applyDrawerTabsAfterRender(m);
 
-  const url = (m.url || "").trim();
-  if (url) {
-    els.drawerLinkWrap.hidden = false;
-    els.drawerLinkBtn.dataset.url = url;
-  } else {
-    els.drawerLinkWrap.hidden = true;
-    delete els.drawerLinkBtn.dataset.url;
-  }
+  renderDrawerAttachments(m);
 
   els.backdrop.hidden = false;
   els.drawer.classList.add("is-open");
@@ -718,7 +807,13 @@ function closeDrawer() {
   els.drawer.setAttribute("aria-hidden", "true");
   document.body.classList.remove("drawer-open");
   els.backdrop.hidden = true;
-  delete els.drawerLinkBtn.dataset.url;
+  if (els.drawerLinks) els.drawerLinks.innerHTML = "";
+  if (els.drawerInlineHost) {
+    els.drawerInlineHost.innerHTML = "";
+    els.drawerInlineHost.hidden = true;
+  }
+  if (els.drawerInlineWrap) els.drawerInlineWrap.hidden = true;
+  if (els.drawerLinkWrap) els.drawerLinkWrap.hidden = true;
   els.drawerBody.classList.remove("drawer__body--tabs");
   updateJumpFirstYearVisibility();
 }
@@ -740,8 +835,10 @@ function initFontToggle() {
 function initDrawerUi() {
   els.drawerClose.addEventListener("click", closeDrawer);
   els.backdrop.addEventListener("click", closeDrawer);
-  els.drawerLinkBtn.addEventListener("click", () => {
-    const url = els.drawerLinkBtn.dataset.url;
+  els.drawerLinks?.addEventListener("click", (e) => {
+    const btn = /** @type {HTMLElement|null} */ (e.target instanceof Element ? e.target.closest("button[data-href]") : null);
+    if (!btn) return;
+    const url = btn.dataset.href;
     if (!url) return;
     window.open(url, "_blank", "noopener,noreferrer");
   });
