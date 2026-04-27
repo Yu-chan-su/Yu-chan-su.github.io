@@ -211,11 +211,7 @@ const CONFIG = {
       title: "撮影時の注意",
       summary: "記録のため、適宜撮影を行ってください。撮影者自身が被写体に前もって許可を得るか、GIがお客として来場した際に撮るようにしてください。",
       steps: [],
-      links: [
-        { label: "場内図（PDF）", href: "./map.pdf" },
-        { label: "場内図詳細（SVG）", href: "./map_detail.svg" },
-      ],
-      detail: ["当日配布の場内図・掲示・運営からの指示を最優先で確認してください。"],
+      detail: [],
     },
   ],
 };
